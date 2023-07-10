@@ -1,4 +1,4 @@
-import { Component } from "react";
+import { useState, useEffect } from "react";
 import Notiflix from 'notiflix';
 import fetchPixabay from "services/PixabayService";
 
@@ -10,126 +10,124 @@ import ErrorMessage from "./ErrorMessage/Error";
 import Modal from "./Modal/Modal";
 // import css from './app.css';
 
-class App extends Component {
+const App = () => {
+  const [modal, setModal] = useState({isOpen: false, largeImageURL: ''});
+  const [images, setImages] = useState([]);
+  const [totalImages, setTotalImages] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState();
 
-  state = {
-    modal: {isOpen: false, largeImageURL: ''},
-    images: [],
-    totalImages: 0,
-    searchQuery: '',
-    currentPage: 1,
-    loading: false,
-    error: false
-};
+  useEffect(() => {
 
-componentDidUpdate = async (_, prevState) => {
-  const {searchQuery, currentPage} = this.state;
-  if(searchQuery !== prevState.searchQuery || currentPage !== prevState.currentPage) {
-    this.fetchImages(searchQuery, currentPage);
-  }
-}
+    let prevSearchQuery = searchQuery;
+    let prevCurrentPage = currentPage;
 
-// onSearchQuery = (data) => {
-//   this.setState({searchQuery: data.inputValue});  
-// }
+    if (searchQuery !== '' && searchQuery !== prevSearchQuery) {
+      fetchImages(searchQuery, currentPage);
+    } else if (currentPage !== prevCurrentPage) {
+      fetchImages(searchQuery, currentPage);
+    }
+  
+
+  }, [searchQuery, currentPage]);
+
+// useEffect = (() => {
+//     if(searchQuery !== searchQuery || currentPage !== currentPage) {
+//         fetchImages(searchQuery, currentPage);
+//       }
+// }, [searchQuery, currentPage]);
+
 
 
 //searchForm submit and setting query and page for the first search
-onSubmitSearch = (query) => {
-  this.setState({
-    searchQuery: query,
-    images: [],
-    currentPage: 1
-  });
-  this.fetchImages(query, 1);
-  // this.fetchImages(query, this.state.currentPage);
-}
+const onSubmitSearch = (query) => {
+    setSearchQuery(query);
+    setImages([]);
+    setCurrentPage(1);
+    fetchImages(query, 1);
+};
+
 
 //uploading more pages upon current search
-onPageUpload = () => {
-  this.setState((prev) => ({
-    currentPage: prev.currentPage + 1,
-  }));
-  this.fetchImages(this.state.searchQuery, this.state.currentPage + 1);
-}
-
-
-fetchImages = async(query, page) => {
-    try {
-      this.setState({loading: true});
-
-      const data = await fetchPixabay(query, page);
-
-      if(data.totalHits === 0) {
-        Notiflix.Notify.warning(`There is no results upon your ${query}, please try again...`);
-        return;
+const onPageUpload = () => {
+    setCurrentPage(prevPage => prevPage + 1)
+    fetchImages(searchQuery, currentPage + 1);
+  }
+  
+  const fetchImages = async(query, page) => {
+      try {
+        setLoading(true);
+  
+        const data = await fetchPixabay(query, page);
+  
+        if(data.totalHits === 0) {
+          Notiflix.Notify.warning(`There is no results upon your ${query}, please try again...`);
+          return;
+        }
+  
+        setImages((prevState) => {
+              return [...prevState, ...data.hits]
+      })
+  
+      setTotalImages(data.totalHits)
+  
+      } catch (error) {
+        setError(true);
+      } finally {
+        setLoading(false)
       }
-
-      this.setState((prevState) => {
-        return {
-            images: [...prevState.images, ...data.hits],
-            totalImages: data.totalHits,
-        };
-      });
-
-    } catch (error) {
-      this.setState({error: true});
-    } finally {
-      this.setState({loading: false})
-    }
-}
-
-//work with modal
-onModalOpen = (data) => {
-  this.setState({
-    modal: {
-      isOpen: true,
-      largeImageURL: data
-    },
-  });
-};
-
-onModalClose = () => {
-  this.setState({
-    modal: {
-      isOpen: false,
-      largeImageURL: ''
-    },
-  });
-}
-
-  render () {
-    const {images, loading, error, totalImages, modal} = this.state;
-    const showBtn = !loading && images.length !== totalImages;
-   
-    return (
-      <div
-        // style={{
-        //   height: '100vh',
-        //   display: 'flex',
-        //   justifyContent: 'center',
-        //   alignItems: 'center',
-        //   fontSize: 40,
-        //   color: '#010101'
-        // }}
-      >
-    
-        <SearchBar onSubmit={this.onSubmitSearch}/>   
-        {loading && <Loader/> }    
-        {images.length > 0 && <ImageGallery images={images} onModalOpen={this.onModalOpen}/> }
-        {error && <ErrorMessage/>}
-        
-        {showBtn && <Button onPageUpload={this.onPageUpload}/>}
-
-        {modal.isOpen && 
-            <Modal 
-              largeImageURL={this.state.modal.largeImageURL} 
-              onModalClose={this.onModalClose} 
-        />}
-        
-      </div>
+  }
+  
+  //work with modal
+  const onModalOpen = (data) => {
+    setModal( {
+        isOpen: true,
+        largeImageURL: data
+      },
+    );
+  };
+  
+  const onModalClose = () => {
+    setModal({
+        isOpen: false,
+        largeImageURL: ''
+      },
     );
   }
-};
+  
+      const showBtn = !loading && images.length !== totalImages;
+     
+      return (
+        <div
+          // style={{
+          //   height: '100vh',
+          //   display: 'flex',
+          //   justifyContent: 'center',
+          //   alignItems: 'center',
+          //   fontSize: 40,
+          //   color: '#010101'
+          // }}
+        >
+      
+          <SearchBar onSubmit={onSubmitSearch}/>   
+          {loading && <Loader/> }    
+          {images.length > 0 && <ImageGallery images={images} onModalOpen={onModalOpen}/> }
+          {error && <ErrorMessage/>}
+          
+          {showBtn && <Button onPageUpload={onPageUpload}/>}
+  
+          {modal.isOpen && 
+              <Modal 
+                largeImageURL={modal.largeImageURL} 
+                onModalClose={onModalClose} 
+          />}
+          
+        </div>
+      );
+    };
+  
+
 
 export default App;
